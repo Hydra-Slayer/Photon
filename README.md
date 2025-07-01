@@ -16,6 +16,7 @@
 
 ## 📂 Project Structure
 
+```
 Photon/
 ├── pom.xml
 ├── photos/ # Imported photo storage (auto-created)
@@ -29,6 +30,7 @@ Photon/
 │ └── AppTest.java
 ├── .gitignore
 └── README.md
+```
 
 
 ## 🧪 Technologies Used
