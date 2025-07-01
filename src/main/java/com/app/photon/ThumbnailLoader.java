@@ -8,6 +8,8 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 
+import java.util.List;
+
 public class ThumbnailLoader {
     private final String photoDir;
 
@@ -15,26 +17,14 @@ public class ThumbnailLoader {
         this.photoDir = photoDir;
     }
 
-    public void loadThumbnails(GridPane gridPane) {
+    // New method to load thumbnails from a list of Photo objects
+    public void loadThumbnails(GridPane gridPane, List<Photo> photos) {
         gridPane.getChildren().clear();
-        File folder = new File(photoDir);
-        if (!folder.exists())
-            return;
-
-        File[] imageFiles = folder.listFiles((dir, name) -> name.toLowerCase().endsWith(".jpg") ||
-                name.toLowerCase().endsWith(".jpeg") ||
-                name.toLowerCase().endsWith(".png") ||
-                name.toLowerCase().endsWith(".gif"));
-
-        if (imageFiles == null)
-            return;
-
         int column = 0;
         int row = 0;
-
-        for (File imageFile : imageFiles) {
+        for (Photo photo : photos) {
             try {
-                Image image = new Image(new FileInputStream(imageFile), 150, 150, true, true);
+                Image image = new Image(new FileInputStream(photo.getFilePath().toFile()), 150, 150, true, true);
                 ImageView imageView = new ImageView(image);
                 imageView.setPreserveRatio(true);
                 imageView.setFitWidth(150);
