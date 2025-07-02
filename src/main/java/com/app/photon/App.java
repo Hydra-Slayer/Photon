@@ -4,12 +4,17 @@ import javafx.application.Application;
 import javafx.geometry.Insets;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
+import javafx.scene.image.Image;
+import javafx.scene.image.ImageView;
 import javafx.scene.layout.*;
 import javafx.stage.Stage;
 
 import java.io.File;
+import java.io.FileInputStream;
 import java.nio.file.Path;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 public class App extends Application {
 
@@ -19,6 +24,7 @@ public class App extends Application {
     private ThumbnailLoader thumbnailLoader;
     private CollectionManager collectionManager;
     private ComboBox<String> collectionComboBox;
+    private Set<Photo> selectedPhotos = new HashSet<>();
 
     public static void main(String[] args) {
         launch(args);
@@ -68,12 +74,37 @@ public class App extends Application {
             });
         });
 
+        // Add to button
+        Button addSelectedToCollectionButton = new Button("Add Selected to Collection");
+        addSelectedToCollectionButton.setOnAction(e -> {
+            if (selectedPhotos.isEmpty()) {
+                Alert alert = new Alert(Alert.AlertType.INFORMATION, "No photos selected.");
+                alert.showAndWait();
+                return;
+            }
+            // Prompt for target collection
+            ChoiceDialog<String> dialog = new ChoiceDialog<>();
+            dialog.setTitle("Select Collection");
+            dialog.setHeaderText("Add selected photos to which collection?");
+            dialog.getItems().addAll(collectionManager.getAllCollections().stream()
+                    .map(PhotoCollection::getName)
+                    .filter(name -> !name.equals(collectionComboBox.getValue())) // Exclude current
+                    .toList());
+            dialog.setSelectedItem(dialog.getItems().isEmpty() ? null : dialog.getItems().get(0));
+            dialog.showAndWait().ifPresent(targetCollection -> {
+                for (Photo photo : selectedPhotos) {
+                    collectionManager.addPhotoToCollection(photo, targetCollection);
+                }
+                selectedPhotos.clear();
+            });
+        });
         gridPane = new GridPane();
         gridPane.setHgap(10);
         gridPane.setVgap(10);
         gridPane.setPadding(new Insets(10));
 
-        HBox controls = new HBox(10, importButton, addCollectionButton, collectionComboBox);
+        HBox controls = new HBox(10, importButton, addSelectedToCollectionButton, addCollectionButton,
+                collectionComboBox);
         VBox root = new VBox(10, controls, gridPane);
         root.setPadding(new Insets(15));
 
@@ -106,7 +137,48 @@ public class App extends Application {
     private void showCollection(String collectionName) {
         PhotoCollection collection = collectionManager.getCollection(collectionName);
         if (collection != null) {
-            thumbnailLoader.loadThumbnails(gridPane, collection.getPhotos());
+            gridPane.getChildren().clear();
+            int column = 0, row = 0;
+            for (Photo photo : collection.getPhotos()) {
+                try {
+                    ImageView imageView = new ImageView(
+                            new Image(new FileInputStream(photo.getFilePath().toFile()), 150, 150, true, true));
+                    imageView.setPreserveRatio(true);
+                    imageView.setFitWidth(150);
+                    imageView.setFitHeight(150);
+
+                    StackPane pane = new StackPane(imageView);
+                    if (selectedPhotos.contains(photo)) {
+                        pane.setStyle("-fx-border-color: blue; -fx-border-width: 2;");
+                        // pane.setStyle("-fx-border-color: blue; -fx-border-width: 4;
+                        // -fx-background-color: white;");
+                    } else {
+                        pane.setStyle("");
+                    }
+
+                    pane.setOnMouseClicked(e -> {
+                        if (selectedPhotos.contains(photo)) {
+                            selectedPhotos.remove(photo);
+                            pane.setStyle("");
+                        } else {
+                            selectedPhotos.add(photo);
+                            pane.setStyle("-fx-border-color: blue; -fx-border-width: 2;");
+                            // pane.setStyle("-fx-border-color: blue; -fx-border-width: 4;
+                            // -fx-background-color: white;");
+                        }
+                    });
+
+                    gridPane.add(pane, column, row);
+                    column++;
+                    if (column == 4) {
+                        column = 0;
+                        row++;
+                    }
+                } catch (Exception ex) {
+                    ex.printStackTrace();
+                }
+            }
         }
     }
+
 }
