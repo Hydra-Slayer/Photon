@@ -1,53 +1,64 @@
 package com.app.photon;
 
+import java.io.*;
+// import java.nio.file.*;
 import java.util.*;
 
 public class CollectionManager {
-    private final Map<String, PhotoCollection> collections;
-    private final PhotoCollection allPhotosCollection;
+    private final File collectionsDir;
 
-    public CollectionManager() {
-        this.collections = new HashMap<>();
-        this.allPhotosCollection = new PhotoCollection("All Photos");
-        collections.put(allPhotosCollection.getName(), allPhotosCollection);
-    }
-
-    public PhotoCollection getAllPhotosCollection() {
-        return allPhotosCollection;
-    }
-
-    public void addCollection(String name) {
-        if (!collections.containsKey(name)) {
-            collections.put(name, new PhotoCollection(name));
+    public CollectionManager(File collectionsDir) {
+        this.collectionsDir = collectionsDir;
+        if (!collectionsDir.exists()) {
+            collectionsDir.mkdirs();
         }
     }
 
-    public void removeCollection(String name) {
-        if (!name.equals(allPhotosCollection.getName())) {
-            collections.remove(name);
+    public List<String> getAllCollectionNames() {
+        String[] names = collectionsDir.list((dir, name) -> new File(dir, name).isDirectory());
+        return names == null ? new ArrayList<>() : Arrays.asList(names);
+    }
+
+    public PhotoCollection loadCollection(String name) {
+        File listFile = new File(new File(collectionsDir, name), "list.txt");
+        PhotoCollection collection = new PhotoCollection(name);
+        if (listFile.exists()) {
+            try (BufferedReader reader = new BufferedReader(new FileReader(listFile))) {
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    collection.addPhoto(line.trim());
+                }
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+        return collection;
+    }
+
+    public void saveCollection(PhotoCollection collection) {
+        File dir = new File(collectionsDir, collection.getName());
+        if (!dir.exists())
+            dir.mkdirs();
+        File listFile = new File(dir, "list.txt");
+        try (BufferedWriter writer = new BufferedWriter(new FileWriter(listFile))) {
+            for (String fileName : collection.getPhotoFileNames()) {
+                writer.write(fileName);
+                writer.newLine();
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
         }
     }
 
-    public PhotoCollection getCollection(String name) {
-        return collections.get(name);
+    public void addPhotoToCollection(String fileName, String collectionName) {
+        PhotoCollection collection = loadCollection(collectionName);
+        collection.addPhoto(fileName);
+        saveCollection(collection);
     }
 
-    public Collection<PhotoCollection> getAllCollections() {
-        return Collections.unmodifiableCollection(collections.values());
-    }
-
-    public void addPhotoToCollection(Photo photo, String collectionName) {
-        PhotoCollection collection = collections.get(collectionName);
-        if (collection != null) {
-            collection.addPhoto(photo);
-            allPhotosCollection.addPhoto(photo);
-        }
-    }
-
-    public void removePhotoFromCollection(Photo photo, String collectionName) {
-        PhotoCollection collection = collections.get(collectionName);
-        if (collection != null) {
-            collection.removePhoto(photo);
-        }
+    public void removePhotoFromCollection(String fileName, String collectionName) {
+        PhotoCollection collection = loadCollection(collectionName);
+        collection.removePhoto(fileName);
+        saveCollection(collection);
     }
 }

@@ -1,42 +1,33 @@
 package com.app.photon;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
+import java.util.*;
 
 public class PhotoCollection {
     private final String name;
-    private final List<Photo> photos;
+    private final Set<String> photoFileNames;
 
     public PhotoCollection(String name) {
         this.name = name;
-        this.photos = new ArrayList<>();
+        this.photoFileNames = new LinkedHashSet<>();
     }
 
     public String getName() {
         return name;
     }
 
-    public List<Photo> getPhotos() {
-        return Collections.unmodifiableList(photos);
+    public Set<String> getPhotoFileNames() {
+        return Collections.unmodifiableSet(photoFileNames);
     }
 
-    public void addPhoto(Photo photo) {
-        if (!photos.contains(photo)) {
-            photos.add(photo);
-        }
+    public void addPhoto(String fileName) {
+        photoFileNames.add(fileName);
     }
 
-    public void removePhoto(Photo photo) {
-        photos.remove(photo);
+    public void removePhoto(String fileName) {
+        photoFileNames.remove(fileName);
     }
 
-    public boolean contains(Photo photo) {
-        return photos.contains(photo);
-    }
-
-    @Override
-    public String toString() {
-        return name + " (" + photos.size() + " photos)";
+    public boolean contains(String fileName) {
+        return photoFileNames.contains(fileName);
     }
 }
