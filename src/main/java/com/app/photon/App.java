@@ -49,7 +49,7 @@ public class App extends Application {
 
         // Import button (optional, if you want to import new photos)
         photoImporter = new PhotoImporter(ALL_PHOTOS_DIR);
-        Button importButton = new Button("Import Photos");
+        Button importButton = new Button("Import Files");
 
         importButton.setOnAction(e -> {
             List<File> importedFiles = photoImporter.importPhotosWithReturn();
@@ -109,7 +109,12 @@ public class App extends Application {
 
         HBox controls = new HBox(10, importButton, addSelectedToCollectionButton, addCollectionButton,
                 collectionComboBox);
-        VBox root = new VBox(10, controls, gridPane);
+
+        ScrollPane scrollPane = new ScrollPane(gridPane);
+        scrollPane.setFitToWidth(true);
+        scrollPane.setFitToHeight(true);
+
+        VBox root = new VBox(10, controls, scrollPane);
         root.setPadding(new Insets(15));
 
         Scene scene = new Scene(root, 800, 600);
@@ -129,56 +134,6 @@ public class App extends Application {
     }
 
     // Shows thumbnails for the selected collection
-    // private void showCollection(String collectionName) {
-    // gridPane.getChildren().clear();
-    // List<String> filesToShow;
-    // if ("All Photos".equals(collectionName)) {
-    // filesToShow = allPhotoFiles;
-    // } else {
-    // PhotoCollection collection =
-    // collectionManager.loadCollection(collectionName);
-    // filesToShow = new ArrayList<>(collection.getPhotoFileNames());
-    // }
-    // int column = 0, row = 0;
-    // for (String fileName : filesToShow) {
-    // try {
-    // File file = new File(ALL_PHOTOS_DIR, fileName);
-    // Photo photo = new Photo(file.toPath());
-    // ImageView imageView = new ImageView(
-    // new Image(new FileInputStream(photo.getFilePath().toFile()), 150, 150, true,
-    // true));
-    // imageView.setPreserveRatio(true);
-    // imageView.setFitWidth(150);
-    // imageView.setFitHeight(150);
-
-    // StackPane pane = new StackPane(imageView);
-    // if (selectedPhotos.contains(photo)) {
-    // pane.setStyle("-fx-border-color: blue; -fx-border-width: 2;");
-    // } else {
-    // pane.setStyle("");
-    // }
-
-    // pane.setOnMouseClicked(e -> {
-    // if (selectedPhotos.contains(photo)) {
-    // selectedPhotos.remove(photo);
-    // pane.setStyle("");
-    // } else {
-    // selectedPhotos.add(photo);
-    // pane.setStyle("-fx-border-color: blue; -fx-border-width: 2;");
-    // }
-    // });
-
-    // gridPane.add(pane, column, row);
-    // column++;
-    // if (column == 4) {
-    // column = 0;
-    // row++;
-    // }
-    // } catch (Exception ex) {
-    // ex.printStackTrace();
-    // }
-    // }
-    // }
     private void showCollection(String collectionName) {
         gridPane.getChildren().clear();
         List<String> filesToShow;
