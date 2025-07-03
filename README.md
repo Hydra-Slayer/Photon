@@ -1,6 +1,6 @@
 # Photon - JavaFX Photo Organizer
 
-**Photon** is a lightweight, locally-run Java application that helps you organize and view your photos in a clean, Instagram-like grid layout. Built using JavaFX, SQLite, and Gson, it lets you import, sort, and manage photos — all stored locally on your system.
+**Photon** is a lightweight, locally-run Java application that helps you organize and view your photos in a clean, Instagram-like grid layout. Built using JavaFX, it lets you import, and manage photos — all stored locally on your system.
 
 ## Table of Contents
 
@@ -27,8 +27,6 @@
 
 - **Java 17+** - Core programming language
 - **JavaFX** - Modern UI framework
-- **SQLite** - Lightweight database for metadata persistence
-- **Gson** - JSON serialization/deserialization
 - **JUnit 5** - Testing framework
 - **Maven** - Build and dependency management
 
