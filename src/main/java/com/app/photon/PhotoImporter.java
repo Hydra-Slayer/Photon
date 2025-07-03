@@ -17,7 +17,8 @@ public class PhotoImporter {
         FileChooser fileChooser = new FileChooser();
         fileChooser.setTitle("Select Photos to Import");
         fileChooser.getExtensionFilters().add(
-                new FileChooser.ExtensionFilter("Image Files", "*.jpg", "*.jpeg", "*.png", "*.gif"));
+                new FileChooser.ExtensionFilter("Media Files", "*.jpg", "*.jpeg", "*.png", "*.gif", "*.mp4", "*.mov",
+                        "*.avi", "*.mkv"));
 
         List<File> selectedFiles = fileChooser.showOpenMultipleDialog(null);
         if (selectedFiles != null) {
@@ -41,7 +42,8 @@ public class PhotoImporter {
         FileChooser fileChooser = new FileChooser();
         fileChooser.setTitle("Select Photos to Import");
         fileChooser.getExtensionFilters().add(
-                new FileChooser.ExtensionFilter("Image Files", "*.jpg", "*.jpeg", "*.png", "*.gif"));
+                new FileChooser.ExtensionFilter("Media Files", "*.jpg", "*.jpeg", "*.png", "*.gif", "*.mp4", "*.mov",
+                        "*.avi", "*.mkv"));
 
         List<File> selectedFiles = fileChooser.showOpenMultipleDialog(null);
         if (selectedFiles != null) {

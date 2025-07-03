@@ -12,19 +12,21 @@ import javafx.stage.Stage;
 import java.io.File;
 import java.io.FileInputStream;
 import java.nio.file.Path;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
+import javafx.scene.media.Media;
+import javafx.scene.media.MediaPlayer;
+import javafx.scene.media.MediaView;
 
 public class App extends Application {
 
-    private static final String PHOTO_DIR = "photos";
+    private static final String ALL_PHOTOS_DIR = "all_photos";
+    private static final String COLLECTIONS_DIR = "collections";
     private GridPane gridPane;
-    private PhotoImporter photoImporter;
-    private ThumbnailLoader thumbnailLoader;
     private CollectionManager collectionManager;
     private ComboBox<String> collectionComboBox;
     private Set<Photo> selectedPhotos = new HashSet<>();
+    private List<String> allPhotoFiles;
+    private PhotoImporter photoImporter;
 
     public static void main(String[] args) {
         launch(args);
@@ -32,34 +34,36 @@ public class App extends Application {
 
     @Override
     public void start(Stage primaryStage) {
-        photoImporter = new PhotoImporter(PHOTO_DIR);
-        thumbnailLoader = new ThumbnailLoader(PHOTO_DIR);
-        collectionManager = new CollectionManager();
-
-        // Add default "All Photos" collection
-        collectionManager.addCollection("All Photos");
+        collectionManager = new CollectionManager(new File(COLLECTIONS_DIR));
+        allPhotoFiles = loadAllPhotoFiles();
 
         // UI: Collection selector
         collectionComboBox = new ComboBox<>();
-        collectionComboBox.getItems().addAll(collectionManager.getAllCollections().stream()
-                .map(PhotoCollection::getName).toList());
+        collectionComboBox.getItems().add("All Photos");
+        collectionComboBox.getItems().addAll(collectionManager.getAllCollectionNames());
         collectionComboBox.setValue("All Photos");
-        collectionComboBox.setOnAction(e -> showCollection(collectionComboBox.getValue()));
+        collectionComboBox.setOnAction(e -> {
+            selectedPhotos.clear();
+            showCollection(collectionComboBox.getValue());
+        });
 
-        // Import button
+        // Import button (optional, if you want to import new photos)
+        photoImporter = new PhotoImporter(ALL_PHOTOS_DIR);
         Button importButton = new Button("Import Photos");
+
         importButton.setOnAction(e -> {
             List<File> importedFiles = photoImporter.importPhotosWithReturn();
-            if (importedFiles != null) {
-                for (File file : importedFiles) {
-                    Photo photo = new Photo(Path.of(PHOTO_DIR, file.getName()));
-                    collectionManager.addPhotoToCollection(photo, "All Photos");
+            if (importedFiles != null && !importedFiles.isEmpty()) {
+                // Update the allPhotoFiles list
+                allPhotoFiles = loadAllPhotoFiles();
+                // Refresh the current view if "All Photos" is selected
+                if ("All Photos".equals(collectionComboBox.getValue())) {
+                    showCollection("All Photos");
                 }
-                showCollection(collectionComboBox.getValue());
             }
         });
 
-        // Add Collection button (optional)
+        // Add Collection button
         Button addCollectionButton = new Button("Add Collection");
         addCollectionButton.setOnAction(e -> {
             TextInputDialog dialog = new TextInputDialog();
@@ -67,14 +71,15 @@ public class App extends Application {
             dialog.setHeaderText("Create a new photo collection");
             dialog.setContentText("Collection name:");
             dialog.showAndWait().ifPresent(name -> {
-                if (!name.isBlank() && collectionManager.getCollection(name) == null) {
-                    collectionManager.addCollection(name);
+                if (!name.isBlank() && !collectionManager.getAllCollectionNames().contains(name)) {
+                    // Create empty collection
+                    collectionManager.saveCollection(new PhotoCollection(name));
                     collectionComboBox.getItems().add(name);
                 }
             });
         });
 
-        // Add to button
+        // Add to Collection button
         Button addSelectedToCollectionButton = new Button("Add Selected to Collection");
         addSelectedToCollectionButton.setOnAction(e -> {
             if (selectedPhotos.isEmpty()) {
@@ -83,21 +88,20 @@ public class App extends Application {
                 return;
             }
             // Prompt for target collection
-            ChoiceDialog<String> dialog = new ChoiceDialog<>();
+            List<String> availableCollections = new ArrayList<>(collectionManager.getAllCollectionNames());
+            availableCollections.remove(collectionComboBox.getValue());
+            ChoiceDialog<String> dialog = new ChoiceDialog<>(
+                    availableCollections.isEmpty() ? null : availableCollections.get(0), availableCollections);
             dialog.setTitle("Select Collection");
             dialog.setHeaderText("Add selected photos to which collection?");
-            dialog.getItems().addAll(collectionManager.getAllCollections().stream()
-                    .map(PhotoCollection::getName)
-                    .filter(name -> !name.equals(collectionComboBox.getValue())) // Exclude current
-                    .toList());
-            dialog.setSelectedItem(dialog.getItems().isEmpty() ? null : dialog.getItems().get(0));
             dialog.showAndWait().ifPresent(targetCollection -> {
                 for (Photo photo : selectedPhotos) {
-                    collectionManager.addPhotoToCollection(photo, targetCollection);
+                    collectionManager.addPhotoToCollection(photo.getFileName(), targetCollection);
                 }
                 selectedPhotos.clear();
             });
         });
+
         gridPane = new GridPane();
         gridPane.setHgap(10);
         gridPane.setVgap(10);
@@ -113,72 +117,135 @@ public class App extends Application {
         primaryStage.setScene(scene);
         primaryStage.show();
 
-        // Initial load
-        loadExistingPhotos();
         showCollection("All Photos");
     }
 
-    // Loads existing photos from the directory into the "All Photos" collection on
-    // startup
-    private void loadExistingPhotos() {
-        File folder = new File(PHOTO_DIR);
-        if (folder.exists()) {
-            File[] files = folder.listFiles((dir, name) -> name.toLowerCase().matches(".*\\.(jpg|jpeg|png|gif)$"));
-            if (files != null) {
-                for (File file : files) {
-                    Photo photo = new Photo(file.toPath());
-                    collectionManager.addPhotoToCollection(photo, "All Photos");
-                }
-            }
-        }
+    private List<String> loadAllPhotoFiles() {
+        File dir = new File(ALL_PHOTOS_DIR);
+        if (!dir.exists())
+            dir.mkdirs();
+        String[] files = dir.list((d, name) -> name.toLowerCase().matches(".*\\.(jpg|jpeg|png|gif|mp4|mov|avi|mkv)$"));
+        return files == null ? new ArrayList<>() : Arrays.asList(files);
     }
 
     // Shows thumbnails for the selected collection
+    // private void showCollection(String collectionName) {
+    // gridPane.getChildren().clear();
+    // List<String> filesToShow;
+    // if ("All Photos".equals(collectionName)) {
+    // filesToShow = allPhotoFiles;
+    // } else {
+    // PhotoCollection collection =
+    // collectionManager.loadCollection(collectionName);
+    // filesToShow = new ArrayList<>(collection.getPhotoFileNames());
+    // }
+    // int column = 0, row = 0;
+    // for (String fileName : filesToShow) {
+    // try {
+    // File file = new File(ALL_PHOTOS_DIR, fileName);
+    // Photo photo = new Photo(file.toPath());
+    // ImageView imageView = new ImageView(
+    // new Image(new FileInputStream(photo.getFilePath().toFile()), 150, 150, true,
+    // true));
+    // imageView.setPreserveRatio(true);
+    // imageView.setFitWidth(150);
+    // imageView.setFitHeight(150);
+
+    // StackPane pane = new StackPane(imageView);
+    // if (selectedPhotos.contains(photo)) {
+    // pane.setStyle("-fx-border-color: blue; -fx-border-width: 2;");
+    // } else {
+    // pane.setStyle("");
+    // }
+
+    // pane.setOnMouseClicked(e -> {
+    // if (selectedPhotos.contains(photo)) {
+    // selectedPhotos.remove(photo);
+    // pane.setStyle("");
+    // } else {
+    // selectedPhotos.add(photo);
+    // pane.setStyle("-fx-border-color: blue; -fx-border-width: 2;");
+    // }
+    // });
+
+    // gridPane.add(pane, column, row);
+    // column++;
+    // if (column == 4) {
+    // column = 0;
+    // row++;
+    // }
+    // } catch (Exception ex) {
+    // ex.printStackTrace();
+    // }
+    // }
+    // }
     private void showCollection(String collectionName) {
-        PhotoCollection collection = collectionManager.getCollection(collectionName);
-        if (collection != null) {
-            gridPane.getChildren().clear();
-            int column = 0, row = 0;
-            for (Photo photo : collection.getPhotos()) {
-                try {
+        gridPane.getChildren().clear();
+        List<String> filesToShow;
+        if ("All Photos".equals(collectionName)) {
+            filesToShow = allPhotoFiles;
+        } else {
+            PhotoCollection collection = collectionManager.loadCollection(collectionName);
+            filesToShow = new ArrayList<>(collection.getPhotoFileNames());
+        }
+        int column = 0, row = 0;
+        for (String fileName : filesToShow) {
+            try {
+                File file = new File(ALL_PHOTOS_DIR, fileName);
+                Photo photo = new Photo(file.toPath());
+                StackPane pane;
+
+                if (fileName.toLowerCase().matches(".*\\.(mp4|mov|avi|mkv)$")) {
+                    // Video: show MediaView (first frame as preview)
+                    Media media = new Media(file.toURI().toString());
+                    MediaPlayer mediaPlayer = new MediaPlayer(media);
+                    MediaView mediaView = new MediaView(mediaPlayer);
+                    mediaView.setFitWidth(150);
+                    mediaView.setFitHeight(150);
+                    mediaView.setPreserveRatio(true);
+
+                    // Play and pause immediately to show the first frame as a thumbnail
+                    mediaPlayer.setOnReady(() -> {
+                        mediaPlayer.seek(javafx.util.Duration.seconds(0.1));
+                        mediaPlayer.pause();
+                    });
+
+                    pane = new StackPane(mediaView);
+                } else {
+                    // Image: show ImageView
                     ImageView imageView = new ImageView(
                             new Image(new FileInputStream(photo.getFilePath().toFile()), 150, 150, true, true));
                     imageView.setPreserveRatio(true);
                     imageView.setFitWidth(150);
                     imageView.setFitHeight(150);
-
-                    StackPane pane = new StackPane(imageView);
-                    if (selectedPhotos.contains(photo)) {
-                        pane.setStyle("-fx-border-color: blue; -fx-border-width: 2;");
-                        // pane.setStyle("-fx-border-color: blue; -fx-border-width: 4;
-                        // -fx-background-color: white;");
-                    } else {
-                        pane.setStyle("");
-                    }
-
-                    pane.setOnMouseClicked(e -> {
-                        if (selectedPhotos.contains(photo)) {
-                            selectedPhotos.remove(photo);
-                            pane.setStyle("");
-                        } else {
-                            selectedPhotos.add(photo);
-                            pane.setStyle("-fx-border-color: blue; -fx-border-width: 2;");
-                            // pane.setStyle("-fx-border-color: blue; -fx-border-width: 4;
-                            // -fx-background-color: white;");
-                        }
-                    });
-
-                    gridPane.add(pane, column, row);
-                    column++;
-                    if (column == 4) {
-                        column = 0;
-                        row++;
-                    }
-                } catch (Exception ex) {
-                    ex.printStackTrace();
+                    pane = new StackPane(imageView);
                 }
+
+                if (selectedPhotos.contains(photo)) {
+                    pane.setStyle("-fx-border-color: blue; -fx-border-width: 2;");
+                } else {
+                    pane.setStyle("");
+                }
+
+                pane.setOnMouseClicked(e -> {
+                    if (selectedPhotos.contains(photo)) {
+                        selectedPhotos.remove(photo);
+                        pane.setStyle("");
+                    } else {
+                        selectedPhotos.add(photo);
+                        pane.setStyle("-fx-border-color: blue; -fx-border-width: 2;");
+                    }
+                });
+
+                gridPane.add(pane, column, row);
+                column++;
+                if (column == 4) {
+                    column = 0;
+                    row++;
+                }
+            } catch (Exception ex) {
+                ex.printStackTrace();
             }
         }
     }
-
 }
