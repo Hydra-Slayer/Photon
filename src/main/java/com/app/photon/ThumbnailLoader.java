@@ -10,6 +10,16 @@ import java.io.IOException;
 
 import java.util.List;
 
+import javafx.scene.image.Image;
+import javafx.scene.image.ImageView;
+import javafx.scene.layout.GridPane;
+import javafx.scene.layout.VBox;
+import javafx.geometry.Insets;
+import javafx.scene.control.Label;
+import java.io.FileInputStream;
+import java.util.List;
+import java.util.function.Consumer;
+
 public class ThumbnailLoader {
     private final String photoDir;
 
@@ -39,6 +49,43 @@ public class ThumbnailLoader {
                 }
             } catch (IOException e) {
                 e.printStackTrace();
+            }
+        }
+    }
+
+    public static void loadCollectionThumbnails(
+            GridPane gridPane,
+            List<CollectionDisplayItem> items,
+            Consumer<String> onCollectionClick) {
+        gridPane.getChildren().clear();
+        int column = 0, row = 0;
+        for (CollectionDisplayItem item : items) {
+            try {
+                Image coverImage;
+                if (item.getCoverImagePath() != null) {
+                    coverImage = new Image(new FileInputStream(item.getCoverImagePath()), 150, 150, true, true);
+                } else {
+                    coverImage = new Image("https://via.placeholder.com/150?text=No+Cover", 150, 150, true, true);
+                }
+                ImageView imageView = new ImageView(coverImage);
+                imageView.setPreserveRatio(true);
+                imageView.setFitWidth(150);
+                imageView.setFitHeight(150);
+
+                Label label = new Label(item.getName());
+                VBox vbox = new VBox(5, imageView, label);
+                vbox.setPadding(new Insets(5));
+                vbox.setStyle("-fx-alignment: center; -fx-background-color: #f0f0f0; -fx-border-color: #cccccc;");
+                vbox.setOnMouseClicked(e -> onCollectionClick.accept(item.getName()));
+
+                gridPane.add(vbox, column, row);
+                column++;
+                if (column == 4) {
+                    column = 0;
+                    row++;
+                }
+            } catch (Exception ex) {
+                ex.printStackTrace();
             }
         }
     }

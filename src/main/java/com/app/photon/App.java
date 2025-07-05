@@ -11,7 +11,7 @@ import javafx.stage.Stage;
 
 import java.io.File;
 import java.io.FileInputStream;
-import java.nio.file.Path;
+
 import java.util.*;
 import javafx.scene.media.Media;
 import javafx.scene.media.MediaPlayer;
@@ -19,14 +19,16 @@ import javafx.scene.media.MediaView;
 
 public class App extends Application {
 
-    private static final String ALL_PHOTOS_DIR = "all_photos";
+    private static final String ALL_PHOTOS_DIR = "all_media";
     private static final String COLLECTIONS_DIR = "collections";
     private GridPane gridPane;
     private CollectionManager collectionManager;
-    private ComboBox<String> collectionComboBox;
+
     private Set<Photo> selectedPhotos = new HashSet<>();
     private List<String> allPhotoFiles;
     private PhotoImporter photoImporter;
+    private Button backButton;
+    private String currentCollectionName = null;
 
     public static void main(String[] args) {
         launch(args);
@@ -37,16 +39,6 @@ public class App extends Application {
         collectionManager = new CollectionManager(new File(COLLECTIONS_DIR));
         allPhotoFiles = loadAllPhotoFiles();
 
-        // UI: Collection selector
-        collectionComboBox = new ComboBox<>();
-        collectionComboBox.getItems().add("All Photos");
-        collectionComboBox.getItems().addAll(collectionManager.getAllCollectionNames());
-        collectionComboBox.setValue("All Photos");
-        collectionComboBox.setOnAction(e -> {
-            selectedPhotos.clear();
-            showCollection(collectionComboBox.getValue());
-        });
-
         // Import button (optional, if you want to import new photos)
         photoImporter = new PhotoImporter(ALL_PHOTOS_DIR);
         Button importButton = new Button("Import Files");
@@ -54,12 +46,17 @@ public class App extends Application {
         importButton.setOnAction(e -> {
             List<File> importedFiles = photoImporter.importPhotosWithReturn();
             if (importedFiles != null && !importedFiles.isEmpty()) {
-                // Update the allPhotoFiles list
                 allPhotoFiles = loadAllPhotoFiles();
-                // Refresh the current view if "All Photos" is selected
-                if ("All Photos".equals(collectionComboBox.getValue())) {
-                    showCollection("All Photos");
+
+                // --- Ensure All Media collection exists and is updated ---
+                PhotoCollection allMediaCollection = collectionManager.loadCollection("All Media");
+                for (File file : importedFiles) {
+                    allMediaCollection.addPhoto(file.getName());
                 }
+                collectionManager.saveCollection(allMediaCollection);
+
+                // Refresh the collections grid after import
+                showCollectionsGrid();
             }
         });
 
@@ -74,7 +71,7 @@ public class App extends Application {
                 if (!name.isBlank() && !collectionManager.getAllCollectionNames().contains(name)) {
                     // Create empty collection
                     collectionManager.saveCollection(new PhotoCollection(name));
-                    collectionComboBox.getItems().add(name);
+                    // No ComboBox to update
                 }
             });
         });
@@ -89,7 +86,6 @@ public class App extends Application {
             }
             // Prompt for target collection
             List<String> availableCollections = new ArrayList<>(collectionManager.getAllCollectionNames());
-            availableCollections.remove(collectionComboBox.getValue());
             ChoiceDialog<String> dialog = new ChoiceDialog<>(
                     availableCollections.isEmpty() ? null : availableCollections.get(0), availableCollections);
             dialog.setTitle("Select Collection");
@@ -102,19 +98,23 @@ public class App extends Application {
             });
         });
 
+        // back button
+        backButton = new Button("Back to Collections");
+        backButton.setVisible(false); // Hidden by default
+        backButton.setOnAction(e -> showCollectionsGrid());
+
         gridPane = new GridPane();
         gridPane.setHgap(10);
         gridPane.setVgap(10);
         gridPane.setPadding(new Insets(10));
 
-        HBox controls = new HBox(10, importButton, addSelectedToCollectionButton, addCollectionButton,
-                collectionComboBox);
+        HBox controls = new HBox(10, importButton, addSelectedToCollectionButton, addCollectionButton);
 
         ScrollPane scrollPane = new ScrollPane(gridPane);
         scrollPane.setFitToWidth(true);
         scrollPane.setFitToHeight(true);
 
-        VBox root = new VBox(10, controls, scrollPane);
+        VBox root = new VBox(10, controls, backButton, scrollPane);
         root.setPadding(new Insets(15));
 
         Scene scene = new Scene(root, 800, 600);
@@ -122,7 +122,7 @@ public class App extends Application {
         primaryStage.setScene(scene);
         primaryStage.show();
 
-        showCollection("All Photos");
+        showCollectionsGrid();
     }
 
     private List<String> loadAllPhotoFiles() {
@@ -133,12 +133,22 @@ public class App extends Application {
         return files == null ? new ArrayList<>() : Arrays.asList(files);
     }
 
+    private void showCollectionsGrid() {
+        currentCollectionName = null;
+        backButton.setVisible(false);
+        List<CollectionDisplayItem> items = collectionManager.getCollectionDisplayItems();
+        ThumbnailLoader.loadCollectionThumbnails(gridPane, items, this::showCollection);
+    }
+
     // Shows thumbnails for the selected collection
     private void showCollection(String collectionName) {
+        currentCollectionName = collectionName;
         gridPane.getChildren().clear();
+        backButton.setVisible(true);
         List<String> filesToShow;
-        if ("All Photos".equals(collectionName)) {
-            filesToShow = allPhotoFiles;
+        if ("All Media".equals(collectionName)) {
+            PhotoCollection allMediaCollection = collectionManager.loadCollection("All Media");
+            filesToShow = new ArrayList<>(allMediaCollection.getPhotoFileNames());
         } else {
             PhotoCollection collection = collectionManager.loadCollection(collectionName);
             filesToShow = new ArrayList<>(collection.getPhotoFileNames());
@@ -154,6 +164,7 @@ public class App extends Application {
                     // Video: show MediaView (first frame as preview)
                     Media media = new Media(file.toURI().toString());
                     MediaPlayer mediaPlayer = new MediaPlayer(media);
+
                     MediaView mediaView = new MediaView(mediaPlayer);
                     mediaView.setFitWidth(150);
                     mediaView.setFitHeight(150);

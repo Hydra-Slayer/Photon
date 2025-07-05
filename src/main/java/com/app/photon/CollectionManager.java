@@ -61,4 +61,26 @@ public class CollectionManager {
         collection.removePhoto(fileName);
         saveCollection(collection);
     }
+
+    public List<CollectionDisplayItem> getCollectionDisplayItems() {
+        List<CollectionDisplayItem> items = new ArrayList<>();
+        File[] dirs = collectionsDir.listFiles(File::isDirectory);
+        if (dirs == null)
+            return items;
+
+        for (File dir : dirs) {
+            String collectionName = dir.getName();
+            File coverFile = null;
+            for (String ext : List.of("jpg", "jpeg", "png", "gif")) {
+                File f = new File(dir, "cover." + ext);
+                if (f.exists()) {
+                    coverFile = f;
+                    break;
+                }
+            }
+            String coverPath = (coverFile != null) ? coverFile.getAbsolutePath() : null;
+            items.add(new CollectionDisplayItem(collectionName, coverPath));
+        }
+        return items;
+    }
 }
