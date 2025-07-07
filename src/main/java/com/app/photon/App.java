@@ -27,8 +27,13 @@ public class App extends Application {
     private Set<Photo> selectedPhotos = new HashSet<>();
     private List<String> allPhotoFiles;
     private PhotoImporter photoImporter;
-    private Button backButton;
     private String currentCollectionName = null;
+
+    private Button backButton;
+    private Button setCoverButton;
+    private Button addSelectedToCollectionButton;
+    private Button removeSelectedFromCollectionButton;
+    private HBox collectionControls;
 
     public static void main(String[] args) {
         launch(args);
@@ -103,18 +108,115 @@ public class App extends Application {
         backButton.setVisible(false); // Hidden by default
         backButton.setOnAction(e -> showCollectionsGrid());
 
+        // set cover button
+        Button setCoverButton = new Button("Set Cover");
+        setCoverButton.setOnAction(e -> {
+            if (currentCollectionName == null || "All Media".equals(currentCollectionName)) {
+                Alert alert = new Alert(Alert.AlertType.INFORMATION, "Select a user collection first.");
+                alert.showAndWait();
+                return;
+            }
+            if (selectedPhotos.size() != 1) {
+                Alert alert = new Alert(Alert.AlertType.INFORMATION, "Select exactly one photo to set as cover.");
+                alert.showAndWait();
+                return;
+            }
+            Photo selected = selectedPhotos.iterator().next();
+            // Copy the selected photo as cover.jpg (or .png) in the collection folder
+            File collectionDir = new File(COLLECTIONS_DIR, currentCollectionName);
+            String ext = "";
+            String fileName = selected.getFileName().toLowerCase();
+            if (fileName.endsWith(".jpg") || fileName.endsWith(".jpeg"))
+                ext = "jpg";
+            else if (fileName.endsWith(".png"))
+                ext = "png";
+            else if (fileName.endsWith(".gif"))
+                ext = "gif";
+            else {
+                Alert alert = new Alert(Alert.AlertType.ERROR, "Only image files can be used as cover.");
+                alert.showAndWait();
+                return;
+            }
+            File coverFile = new File(collectionDir, "cover." + ext);
+            try {
+                java.nio.file.Files.copy(
+                        selected.getFilePath(),
+                        coverFile.toPath(),
+                        java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+                showCollectionsGrid(); // Refresh grid to show new cover
+                Alert alert = new Alert(Alert.AlertType.INFORMATION, "Cover set successfully!");
+                alert.showAndWait();
+            } catch (Exception ex) {
+                ex.printStackTrace();
+                Alert alert = new Alert(Alert.AlertType.ERROR, "Failed to set cover.");
+                alert.showAndWait();
+            }
+        });
+
+        // remove photo from collection button
+        Button removeSelectedFromCollectionButton = new Button("Remove Selected from Collection");
+        removeSelectedFromCollectionButton.setOnAction(e -> {
+            if (currentCollectionName == null || "All Media".equals(currentCollectionName)) {
+                Alert alert = new Alert(Alert.AlertType.INFORMATION, "Cannot remove photos from All Media collection.");
+                alert.showAndWait();
+                return;
+            }
+            if (selectedPhotos.isEmpty()) {
+                Alert alert = new Alert(Alert.AlertType.INFORMATION, "No photos selected.");
+                alert.showAndWait();
+                return;
+            }
+            for (Photo photo : selectedPhotos) {
+                collectionManager.removePhotoFromCollection(photo.getFileName(), currentCollectionName);
+            }
+            selectedPhotos.clear();
+            showCollection(currentCollectionName);
+        });
+
+        Button deleteCollectionButton = new Button("Delete Collection");
+        deleteCollectionButton.setOnAction(e -> {
+            List<String> collections = new ArrayList<>(collectionManager.getAllCollectionNames());
+            collections.remove("All Media");
+            if (collections.isEmpty()) {
+                Alert alert = new Alert(Alert.AlertType.INFORMATION, "No user collections to delete.");
+                alert.showAndWait();
+                return;
+            }
+            ChoiceDialog<String> dialog = new ChoiceDialog<>(collections.get(0), collections);
+            dialog.setTitle("Delete Collection");
+            dialog.setHeaderText("Select a collection to delete:");
+            dialog.setContentText("Collection:");
+            Optional<String> result = dialog.showAndWait();
+            result.ifPresent(collectionToDelete -> {
+                Alert confirm = new Alert(Alert.AlertType.CONFIRMATION,
+                        "Are you sure you want to delete the collection \"" + collectionToDelete + "\"?",
+                        ButtonType.YES, ButtonType.NO);
+                confirm.setTitle("Confirm Deletion");
+                Optional<ButtonType> confirmation = confirm.showAndWait();
+                if (confirmation.isPresent() && confirmation.get() == ButtonType.YES) {
+                    // Delete the collection folder
+                    File collectionDir = new File(COLLECTIONS_DIR, collectionToDelete);
+                    deleteDirectoryRecursively(collectionDir);
+                    showCollectionsGrid();
+                }
+            });
+        });
+        // UI: Grid setup
         gridPane = new GridPane();
         gridPane.setHgap(10);
         gridPane.setVgap(10);
         gridPane.setPadding(new Insets(10));
 
-        HBox controls = new HBox(10, importButton, addSelectedToCollectionButton, addCollectionButton);
-
+        // UI: button setup
+        HBox alwaysVisibleControls = new HBox(10, importButton, addCollectionButton, deleteCollectionButton);
+        collectionControls = new HBox(10, addSelectedToCollectionButton, removeSelectedFromCollectionButton,
+                setCoverButton);
+        collectionControls.setVisible(false); // Hide by default
         ScrollPane scrollPane = new ScrollPane(gridPane);
         scrollPane.setFitToWidth(true);
         scrollPane.setFitToHeight(true);
 
-        VBox root = new VBox(10, controls, backButton, scrollPane);
+        VBox root = new VBox(10, alwaysVisibleControls, collectionControls, backButton, scrollPane);
         root.setPadding(new Insets(15));
 
         Scene scene = new Scene(root, 800, 600);
@@ -123,6 +225,20 @@ public class App extends Application {
         primaryStage.show();
 
         showCollectionsGrid();
+    }
+
+    private void deleteDirectoryRecursively(File dir) {
+        if (dir.isDirectory()) {
+            File[] files = dir.listFiles();
+            if (files != null) {
+                for (File file : files) {
+                    deleteDirectoryRecursively(file);
+                }
+            }
+        }
+        if (!dir.delete()) {
+            System.err.println("Failed to delete: " + dir.getAbsolutePath());
+        }
     }
 
     private List<String> loadAllPhotoFiles() {
@@ -136,6 +252,8 @@ public class App extends Application {
     private void showCollectionsGrid() {
         currentCollectionName = null;
         backButton.setVisible(false);
+        collectionControls.setVisible(false);
+        selectedPhotos.clear();
         List<CollectionDisplayItem> items = collectionManager.getCollectionDisplayItems();
         ThumbnailLoader.loadCollectionThumbnails(gridPane, items, this::showCollection);
     }
@@ -145,6 +263,7 @@ public class App extends Application {
         currentCollectionName = collectionName;
         gridPane.getChildren().clear();
         backButton.setVisible(true);
+        collectionControls.setVisible(true);
         List<String> filesToShow;
         if ("All Media".equals(collectionName)) {
             PhotoCollection allMediaCollection = collectionManager.loadCollection("All Media");

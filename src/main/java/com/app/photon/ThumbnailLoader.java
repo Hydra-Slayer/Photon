@@ -34,7 +34,10 @@ public class ThumbnailLoader {
         int row = 0;
         for (Photo photo : photos) {
             try {
-                Image image = new Image(new FileInputStream(photo.getFilePath().toFile()), 150, 150, true, true);
+                Image image;
+                try (FileInputStream fis = new FileInputStream(photo.getFilePath().toFile())) {
+                    image = new Image(fis, 150, 150, true, true);
+                }
                 ImageView imageView = new ImageView(image);
                 imageView.setPreserveRatio(true);
                 imageView.setFitWidth(150);
@@ -63,7 +66,9 @@ public class ThumbnailLoader {
             try {
                 Image coverImage;
                 if (item.getCoverImagePath() != null) {
-                    coverImage = new Image(new FileInputStream(item.getCoverImagePath()), 150, 150, true, true);
+                    try (FileInputStream fis = new FileInputStream(item.getCoverImagePath())) {
+                        coverImage = new Image(fis, 150, 150, true, true);
+                    }
                 } else {
                     coverImage = new Image("https://via.placeholder.com/150?text=No+Cover", 150, 150, true, true);
                 }
