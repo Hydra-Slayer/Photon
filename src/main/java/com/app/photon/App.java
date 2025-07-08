@@ -2,6 +2,7 @@ package com.app.photon;
 
 import javafx.application.Application;
 import javafx.geometry.Insets;
+import javafx.geometry.Pos;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
 import javafx.scene.image.Image;
@@ -206,9 +207,10 @@ public class App extends Application {
         gridPane.setHgap(10);
         gridPane.setVgap(10);
         gridPane.setPadding(new Insets(10));
-
+        Button toggleDarkModeButton = new Button("Toggle Dark Mode");
         // UI: button setup
-        HBox alwaysVisibleControls = new HBox(10, importButton, addCollectionButton, deleteCollectionButton);
+        HBox alwaysVisibleControls = new HBox(10, importButton, addCollectionButton, deleteCollectionButton,
+                toggleDarkModeButton);
         collectionControls = new HBox(10, addSelectedToCollectionButton, removeSelectedFromCollectionButton,
                 setCoverButton);
         collectionControls.setVisible(false); // Hide by default
@@ -224,7 +226,26 @@ public class App extends Application {
         primaryStage.setScene(scene);
         primaryStage.show();
 
+        // dark mode toggle logic
+        final boolean[] darkMode = { false }; // Use array for mutability in lambda
+        toggleDarkModeButton.setOnAction(e -> {
+            darkMode[0] = !darkMode[0];
+            if (darkMode[0]) {
+                scene.getStylesheets().add(getClass().getResource("/styles/dark-theme.css").toExternalForm());
+            } else {
+                scene.getStylesheets().clear();
+            }
+        });
+
         showCollectionsGrid();
+    }
+
+    private String truncateFileName(String name, int maxLength) {
+        if (name.length() <= maxLength)
+            return name;
+        int dot = name.lastIndexOf('.');
+        String ext = (dot != -1) ? name.substring(dot) : "";
+        return name.substring(0, Math.max(0, maxLength - ext.length() - 3)) + "..." + ext;
     }
 
     private void deleteDirectoryRecursively(File dir) {
@@ -322,7 +343,16 @@ public class App extends Application {
                     }
                 });
 
-                gridPane.add(pane, column, row);
+                String displayName = truncateFileName(fileName, 18); // Adjust max length as needed
+                Label nameLabel = new Label(displayName);
+                nameLabel.setMaxWidth(150);
+                nameLabel.setStyle("-fx-font-size: 11; -fx-text-alignment: center;");
+                nameLabel.setWrapText(false);
+
+                VBox vbox = new VBox(2, pane, nameLabel);
+                vbox.setAlignment(javafx.geometry.Pos.CENTER);
+
+                gridPane.add(vbox, column, row);
                 column++;
                 if (column == 4) {
                     column = 0;

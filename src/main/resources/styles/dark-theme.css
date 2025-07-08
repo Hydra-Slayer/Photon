@@ -1,0 +1,10 @@
+.root {
+    -fx-base: #232323;
+    -fx-background: #232323;
+    -fx-background-color: #232323;
+    -fx-text-fill: #e0e0e0;
+}
+.label, .text-field, .choice-box, .combo-box, .list-view, .table-view {
+    -fx-background-color: #232323;
+    -fx-text-fill: #e0e0e0;
+}
