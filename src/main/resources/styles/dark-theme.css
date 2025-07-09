@@ -8,3 +8,6 @@
     -fx-background-color: #232323;
     -fx-text-fill: #e0e0e0;
 }
+.grid-pane, .stack-pane, .vbox, .hbox {
+    -fx-background-color: #232323;
+}
