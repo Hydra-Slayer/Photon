@@ -1,0 +1,14 @@
+/* Collection thumbnail styling for light mode */
+.collection-thumbnail {
+    -fx-alignment: center;
+    -fx-background-color: #f5f5f5;
+    -fx-border-color: #cccccc;
+    -fx-border-width: 1px;
+    -fx-border-radius: 5px;
+    -fx-background-radius: 5px;
+}
+
+.collection-thumbnail:hover {
+    -fx-background-color: #e8e8e8;
+    -fx-border-color: #999999;
+}

@@ -80,9 +80,7 @@ public class ThumbnailLoader {
                 Label label = new Label(item.getName());
                 VBox vbox = new VBox(5, imageView, label);
                 vbox.setPadding(new Insets(5));
-                // // vbox.setStyle("-fx-alignment: center; -fx-background-color: #f0f0f0;
-                // -fx-border-color: #cccccc;");
-                vbox.setStyle("-fx-alignment: center");
+                vbox.getStyleClass().add("collection-thumbnail");
                 vbox.setOnMouseClicked(e -> onCollectionClick.accept(item.getName()));
 
                 gridPane.add(vbox, column, row);

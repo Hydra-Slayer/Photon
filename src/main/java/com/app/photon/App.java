@@ -224,6 +224,7 @@ public class App extends Application {
         Scene scene = new Scene(root, 800, 600);
         primaryStage.setTitle("Photon - Photo Organizer");
         primaryStage.setScene(scene);
+        scene.getStylesheets().add(getClass().getResource("/styles/light.css").toExternalForm());
         primaryStage.show();
 
         // dark mode toggle logic
@@ -231,9 +232,9 @@ public class App extends Application {
         toggleDarkModeButton.setOnAction(e -> {
             darkMode[0] = !darkMode[0];
             if (darkMode[0]) {
-                scene.getStylesheets().add(getClass().getResource("/styles/dark-theme.css").toExternalForm());
+                scene.getStylesheets().add(getClass().getResource("/styles/dark.css").toExternalForm());
             } else {
-                scene.getStylesheets().clear();
+                scene.getStylesheets().add(getClass().getResource("/styles/light.css").toExternalForm());
             }
         });
 
