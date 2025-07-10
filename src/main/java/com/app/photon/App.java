@@ -231,6 +231,7 @@ public class App extends Application {
         final boolean[] darkMode = { false }; // Use array for mutability in lambda
         toggleDarkModeButton.setOnAction(e -> {
             darkMode[0] = !darkMode[0];
+            scene.getStylesheets().clear();
             if (darkMode[0]) {
                 scene.getStylesheets().add(getClass().getResource("/styles/dark.css").toExternalForm());
             } else {
