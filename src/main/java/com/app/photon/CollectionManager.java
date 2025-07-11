@@ -62,6 +62,23 @@ public class CollectionManager {
         saveCollection(collection);
     }
 
+    public void deletePhotoEverywhere(String fileName, String allPhotosDir) {
+        // Delete the actual file
+        File file = new File(allPhotosDir, fileName);
+        if (file.exists()) {
+            file.delete();
+        }
+
+        // Remove from all collections
+        for (String collectionName : getAllCollectionNames()) {
+            PhotoCollection collection = loadCollection(collectionName);
+            if (collection.contains(fileName)) {
+                collection.removePhoto(fileName);
+                saveCollection(collection);
+            }
+        }
+    }
+
     public List<CollectionDisplayItem> getCollectionDisplayItems() {
         List<CollectionDisplayItem> items = new ArrayList<>();
         File[] dirs = collectionsDir.listFiles(File::isDirectory);

@@ -202,6 +202,27 @@ public class App extends Application {
                 }
             });
         });
+        Button deletePhotoEverywhereButton = new Button("Delete Photo Everywhere");
+        deletePhotoEverywhereButton.setOnAction(e -> {
+            if (selectedPhotos.isEmpty()) {
+                Alert alert = new Alert(Alert.AlertType.INFORMATION, "No photos selected.");
+                alert.showAndWait();
+                return;
+            }
+            Alert confirm = new Alert(Alert.AlertType.CONFIRMATION,
+                    "Delete selected photo(s) from disk and all collections?",
+                    ButtonType.YES, ButtonType.NO);
+            confirm.setTitle("Confirm Deletion");
+            Optional<ButtonType> confirmation = confirm.showAndWait();
+            if (confirmation.isPresent() && confirmation.get() == ButtonType.YES) {
+                for (Photo photo : selectedPhotos) {
+                    collectionManager.deletePhotoEverywhere(photo.getFileName(), ALL_PHOTOS_DIR);
+                }
+                selectedPhotos.clear();
+                showCollection(currentCollectionName);
+            }
+        });
+
         // UI: Grid setup
         gridPane = new GridPane();
         gridPane.setHgap(10);
@@ -212,7 +233,7 @@ public class App extends Application {
         HBox alwaysVisibleControls = new HBox(10, importButton, addCollectionButton, deleteCollectionButton,
                 toggleDarkModeButton);
         collectionControls = new HBox(10, addSelectedToCollectionButton, removeSelectedFromCollectionButton,
-                setCoverButton);
+                setCoverButton, deletePhotoEverywhereButton);
         collectionControls.setVisible(false); // Hide by default
         ScrollPane scrollPane = new ScrollPane(gridPane);
         scrollPane.setFitToWidth(true);
@@ -273,96 +294,26 @@ public class App extends Application {
     }
 
     private void showCollectionsGrid() {
-        currentCollectionName = null;
-        backButton.setVisible(false);
-        collectionControls.setVisible(false);
-        selectedPhotos.clear();
-        List<CollectionDisplayItem> items = collectionManager.getCollectionDisplayItems();
-        ThumbnailLoader.loadCollectionThumbnails(gridPane, items, this::showCollection);
+        CollectionViewHelper.showCollectionsGrid(
+                gridPane,
+                collectionManager,
+                this::showCollection,
+                selectedPhotos);
     }
 
-    // Shows thumbnails for the selected collection
     private void showCollection(String collectionName) {
-        currentCollectionName = collectionName;
-        gridPane.getChildren().clear();
-        backButton.setVisible(true);
-        collectionControls.setVisible(true);
-        List<String> filesToShow;
-        if ("All Media".equals(collectionName)) {
-            PhotoCollection allMediaCollection = collectionManager.loadCollection("All Media");
-            filesToShow = new ArrayList<>(allMediaCollection.getPhotoFileNames());
-        } else {
-            PhotoCollection collection = collectionManager.loadCollection(collectionName);
-            filesToShow = new ArrayList<>(collection.getPhotoFileNames());
+        if (collectionName == null) {
+            // Optionally show a message or default to "All Media"
+            collectionName = "All Media";
         }
-        int column = 0, row = 0;
-        for (String fileName : filesToShow) {
-            try {
-                File file = new File(ALL_PHOTOS_DIR, fileName);
-                Photo photo = new Photo(file.toPath());
-                StackPane pane;
-
-                if (fileName.toLowerCase().matches(".*\\.(mp4|mov|avi|mkv)$")) {
-                    // Video: show MediaView (first frame as preview)
-                    Media media = new Media(file.toURI().toString());
-                    MediaPlayer mediaPlayer = new MediaPlayer(media);
-
-                    MediaView mediaView = new MediaView(mediaPlayer);
-                    mediaView.setFitWidth(150);
-                    mediaView.setFitHeight(150);
-                    mediaView.setPreserveRatio(true);
-
-                    // Play and pause immediately to show the first frame as a thumbnail
-                    mediaPlayer.setOnReady(() -> {
-                        mediaPlayer.seek(javafx.util.Duration.seconds(0.1));
-                        mediaPlayer.pause();
-                    });
-
-                    pane = new StackPane(mediaView);
-                } else {
-                    // Image: show ImageView
-                    ImageView imageView = new ImageView(
-                            new Image(new FileInputStream(photo.getFilePath().toFile()), 150, 150, true, true));
-                    imageView.setPreserveRatio(true);
-                    imageView.setFitWidth(150);
-                    imageView.setFitHeight(150);
-                    pane = new StackPane(imageView);
-                }
-
-                if (selectedPhotos.contains(photo)) {
-                    pane.setStyle("-fx-border-color: blue; -fx-border-width: 2;");
-                } else {
-                    pane.setStyle("");
-                }
-
-                pane.setOnMouseClicked(e -> {
-                    if (selectedPhotos.contains(photo)) {
-                        selectedPhotos.remove(photo);
-                        pane.setStyle("");
-                    } else {
-                        selectedPhotos.add(photo);
-                        pane.setStyle("-fx-border-color: blue; -fx-border-width: 2;");
-                    }
-                });
-
-                String displayName = truncateFileName(fileName, 18); // Adjust max length as needed
-                Label nameLabel = new Label(displayName);
-                nameLabel.setMaxWidth(150);
-                nameLabel.setStyle("-fx-font-size: 11; -fx-text-alignment: center;");
-                nameLabel.setWrapText(false);
-
-                VBox vbox = new VBox(2, pane, nameLabel);
-                vbox.setAlignment(javafx.geometry.Pos.CENTER);
-
-                gridPane.add(vbox, column, row);
-                column++;
-                if (column == 4) {
-                    column = 0;
-                    row++;
-                }
-            } catch (Exception ex) {
-                ex.printStackTrace();
-            }
-        }
+        CollectionViewHelper.showCollection(
+                collectionName,
+                gridPane,
+                collectionManager,
+                ALL_PHOTOS_DIR,
+                selectedPhotos,
+                collectionControls,
+                backButton,
+                fileName -> truncateFileName(fileName, 18));
     }
 }
