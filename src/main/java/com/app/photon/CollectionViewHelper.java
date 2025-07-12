@@ -4,6 +4,7 @@ import javafx.scene.Scene;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.ScrollPane;
+import javafx.scene.control.Slider;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.layout.*;
@@ -36,28 +37,77 @@ public class CollectionViewHelper {
             MediaPlayer mediaPlayer = new MediaPlayer(media);
             MediaView mediaView = new MediaView(mediaPlayer);
 
+            // Play/Pause button
+            Button playPauseButton = new Button("Pause");
+            playPauseButton.setOnAction(ev -> {
+                if (mediaPlayer.getStatus() == MediaPlayer.Status.PLAYING) {
+                    mediaPlayer.pause();
+                    playPauseButton.setText("Play");
+                } else {
+                    mediaPlayer.play();
+                    playPauseButton.setText("Pause");
+                }
+            });
+
+            // Seek slider
+            Slider seekSlider = new Slider();
+            seekSlider.setMin(0);
+            seekSlider.setMax(100);
+            seekSlider.setValue(0);
+
+            mediaPlayer.currentTimeProperty().addListener((obs, oldTime, newTime) -> {
+                if (mediaPlayer.getTotalDuration().toMillis() > 0) {
+                    seekSlider.setValue(newTime.toMillis() / mediaPlayer.getTotalDuration().toMillis() * 100);
+                }
+            });
+
+            seekSlider.setOnMousePressed(ev -> mediaPlayer.pause());
+            seekSlider.setOnMouseReleased(ev -> {
+                double percent = seekSlider.getValue() / 100.0;
+                mediaPlayer.seek(mediaPlayer.getTotalDuration().multiply(percent));
+                mediaPlayer.play();
+            });
+
+            // Volume slider
+            Slider volumeSlider = new Slider(0, 1, mediaPlayer.getVolume());
+            volumeSlider.setPrefWidth(100);
+            volumeSlider.valueProperty().addListener((obs, oldVal, newVal) -> {
+                mediaPlayer.setVolume(newVal.doubleValue());
+            });
+
+            // Mute button
+            Button muteButton = new Button("Mute");
+            muteButton.setOnAction(ev -> {
+                boolean muted = mediaPlayer.isMute();
+                mediaPlayer.setMute(!muted);
+                muteButton.setText(mediaPlayer.isMute() ? "Unmute" : "Mute");
+            });
+
+            HBox controls = new HBox(10, playPauseButton, seekSlider, new Label("Volume:"), volumeSlider, muteButton);
+            controls.setPadding(new Insets(10));
+            controls.setAlignment(javafx.geometry.Pos.CENTER);
+
+            VBox root = new VBox(10, mediaView, controls);
+            root.setPadding(new Insets(10));
+            root.setAlignment(javafx.geometry.Pos.CENTER);
+
             mediaPlayer.setOnReady(() -> {
                 double width = media.getWidth();
                 double height = media.getHeight();
-
-                // Limit to screen size
                 double fitWidth = Math.min(width, maxWidth);
                 double fitHeight = Math.min(height, maxHeight);
-
                 mediaView.setFitWidth(fitWidth);
                 mediaView.setFitHeight(fitHeight);
-
-                stage.setWidth(fitWidth + 40);
-                stage.setHeight(fitHeight + 80);
+                stage.setWidth(fitWidth + 80);
+                stage.setHeight(fitHeight + 160);
                 mediaPlayer.play();
             });
-            // Stop media when window is closed
+
             stage.setOnCloseRequest(e -> {
                 mediaPlayer.stop();
                 mediaPlayer.dispose();
-                // Optionally, set mediaPlayer = null;
             });
-            StackPane root = new StackPane(mediaView);
+
             Scene scene = new Scene(root);
             stage.setScene(scene);
             stage.show();
