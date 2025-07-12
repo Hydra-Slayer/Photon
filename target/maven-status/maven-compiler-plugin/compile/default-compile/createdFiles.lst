@@ -1,1 +1,7 @@
+com\app\photon\CollectionManager.class
 com\app\photon\App.class
+com\app\photon\Photo.class
+com\app\photon\PhotoCollection.class
+com\app\photon\CollectionViewHelper.class
+com\app\photon\PhotoImporter.class
+com\app\photon\CollectionDisplayItem.class
